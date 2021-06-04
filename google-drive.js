@@ -1,26 +1,26 @@
 const google = require('googleapis').google;
 const credentials = require('./credentials.json');
 
+function findResErr(err) {
+  if (err.errors && err.errors.length > 0) {
+    return err.errors[0].message;
+  } else {
+    return err;
+  }
+}
+
 module.exports = class Drive {
   // Declares a constructor function for the Drive class.
   constructor(fileData) {
-    // Tests that all of the required parameters were passed in, and throws the appropriate error if they aren't.
-    if (typeof fileData != 'object') {
-      throw 'The file data is required as an object.';
-    } else if (typeof fileData.id != 'string') {
-      throw 'The id of the file is required as a string.';
-    } else if (typeof fileData.name == 'string') {
-      throw 'The name of the file is required as a string.';
-    } else if (fileData.content == undefined || fileData.content == null) {
-      throw 'The content of the file is required.';
-    } else {
-      // Assigns the data passed in to the new Drive instance.
-      Object.assign(this, fileData);
-    }
+    // Assigns the data passed in to the new Drive instance.
+    Object.assign(this, fileData);
   };
 
   // Declares an array of scopes.
   static scopes = ['https://www.googleapis.com/auth/drive'];
+
+  // Declares an array of fields.
+  static fields = ['kind', 'mimeType', 'id', 'name', 'description', 'starred', 'trashed', 'webViewLink', 'webContentLink', 'parents', 'owners', 'fileExtension'];
 
   // Declares a static variable to hold the google drive access token.
   static access = null;
@@ -30,7 +30,7 @@ module.exports = class Drive {
     // Gets the google JWT.
     const auth = new google.auth.JWT(credentials.client_email, null, credentials.private_key, Drive.scopes);
     // Gets an instance of google drive with the JWT.
-    const drive = google.drive({version: 'v3', auth});
+    const drive = google.drive({version: 'v3', auth, encoding: null});
     // Sets the static Drive access variable to the google drive instance.
     Drive.access = drive;
     // Returns the google drive instance.
@@ -50,27 +50,16 @@ module.exports = class Drive {
         }),
         Drive.access.files.get({
           fileId: id, 
-          fields: 'kind, mimeType, id, name, description, starred, trashed, webViewLink, webContentLink, parents, owners, fileExtension'
+          fields: Drive.fields.join(', ')
         })
       ])
       // Resolves the promise, returning an object containing the data fetched.
-      .then(fileResponse => resolve({
-        content: fileResponse[0].data,
-        kind: fileResponse[1].data.kind,
-        mimeType: fileResponse[1].data.mimeType,
-        id: fileResponse[1].data.id,
-        name: fileResponse[1].data.name,
-        description: fileResponse[1].data.description,
-        starred: fileResponse[1].data.starred,
-        trashed: fileResponse[1].data.trashed,
-        viewLink: fileResponse[1].data.webViewLink,
-        downloadLink: fileResponse[1].data.webContentLink,
-        parents: fileResponse[1].data.parents,
-        owners: fileResponse[1].data.owners,
-        fileExtension: fileResponse[1].data.fileExtension
+      .then(res => resolve({
+        ...res[0],
+        ...res[1]
       }))
       // If an error occurs, the promise is rejected with that error.
-      .catch(err => reject(err));
+      .catch(err => reject(findResErr(err)));
     });
   };
 
@@ -87,15 +76,201 @@ module.exports = class Drive {
         // Tests the number of ids returned.
         if (res.data.files.length == 1) {
           // Gets the file by id and returns the data if one file id is returned.
-          Drive.getFileById(res.data.files[0].id).then(data => resolve(data)).catch(err => reject(err));
-        } else if (res.files.length < 1) {
+          Drive.getFileById(res.data.files[0].id).then(data => resolve(data)).catch(err => reject(findResErr(err)));
+        } else if (res.data.files.length < 1) {
           // Rejects the promise if no files are found with the name provided.
           reject('No file found with that name.');
         } else {
           // Rejects the promise if multiple files are found with the name provided.
           reject('Too many files share that name.')
         }
-      }).catch(err => reject(err));
+      }).catch(err => reject(findResErr(err)));
     });
+  };
+
+  // Declares a static function that tests if a file with the id provided exists.
+  static async testFileExist(id) {
+    // Returns a promise.
+    return new Promise((resolve, reject) => {
+      // Tests that the id provided is of type string.
+      if (typeof id == 'string') {
+        // Runs a request for the file, returning only the id, and resolving the promise returned with a value of true if successful.
+        Drive.access.files.get({
+          fileId: id,
+          fields: 'id'
+        }).then((res) => resolve(true)).catch(err => {
+          // Tests if the error was that the file was not found.
+          if (err.errors && err.errors.length > 0 && err.errors[0].reason == 'notFound') {
+            // Resolves the promise returned with a value of false.
+            resolve(false);
+          } else {
+            // Rejects the promise returned.
+            reject(findResErr(err));
+          }
+        });
+      } else {
+        // Resolves the promise returned with a value of false.
+        resolve(false);
+      }
+    });
+  }
+
+  // Declares a static function to create (upload a new) file on Google Drive.
+  static async createFile(data) {
+    // Returns a promise.
+    return new Promise((resolve, reject) => {
+      // Runs a create request (multipart) with the data provided.
+      Drive.access.files.create({
+        uploadType: 'multipart',
+        resource: {
+          mimeType: data.mimeType,
+          name: data.name,
+          description: data.description,
+          starred: data.starred,
+          parents: [data.parent]
+        },
+        media: {
+          mimeType: data.mimeType,
+          body: data.content
+        },
+        supportsAllDrives: true,
+        fields: Drive.fields.join(', ')
+      }).then((res) => {
+        // Resolves the promise, returning the metadata from the response.
+        resolve(res.data);
+      }).catch(err => reject(findResErr(err)));
+    });
+  };
+
+  static async updateFile(data) {
+    // Returns a promise.
+    return new Promise((resolve, reject) => {
+      // Runs a create request (multipart) with the data provided.
+      Drive.access.files.update({
+        uploadType: 'multipart',
+        fileId: data.id,
+        resource: {
+          mimeType: data.mimeType,
+          name: data.name,
+          description: data.description,
+          starred: data.starred
+        },
+        media: {
+          mimeType: data.mimeType,
+          body: data.content
+        },
+        fields: Drive.fields.join(', ')
+      }).then((res) => {
+        if (res.data.parents[0] != data.parent) {
+          console.log(res.data.parents)
+          console.log(data.parent);
+          Drive.access.files.update({
+            uploadType: 'multipart',
+            fileId: data.id,
+            addParents: [data.parent],
+            removeParents: res.data.parents,
+            fields: Drive.fields.join(', ')
+          }).then(res => {
+            // Resolves the promise, returning the metadata from the response.
+            resolve(res.data).catch(err => reject(findResErr(err)));;
+          }).catch(err => reject(findResErr(err)));
+        } else {
+          // Resolves the promise, returning the metadata from the response.
+          resolve(res.data);
+        }
+      }).catch(err => reject(findResErr(err)));
+    });
+  }
+
+  // Declares a static function to delete a file from Google Drive.
+  static async deleteFile(id) {
+    // Returns a promise.
+    return new Promise((resolve, reject) => {
+      // Calls the delete function, resolving the promise with the response data if successful or rejecting the error if one occurs.
+      Drive.access.files.delete({
+        fileId: id
+      }).then(res => resolve(res.data)).catch(err => reject(findResErr(err)));
+    });
+  }
+
+  // Declares a function to load the data from Google Drive based on an id or name currently in saved in the instance of this class.
+  async load() {
+    // Returns a promise.
+    return new Promise((resolve, reject) => {
+      // Declares a varaible to hold the fetch promise.
+      let promise;
+      // Tests if the current instance of this class has a string id or name, and fetches the file appropriatly.
+      if (typeof this.id == 'string') {
+        promise = Drive.getFileById(this.id);
+      } else if (typeof this.name == 'string') {
+        promise = Drive.getFileByName(this.name);
+      } else {
+        // Rejects the promise if neither an id or name is found.
+        reject('The current instance of this class must have either an id or name in string format for this function to be called.');
+      }
+      // Waits for the selected promise to resolve.
+      promise.then(data => {
+        // Assigns the data to the current instance of this class and resolves the promise, with the data.
+        Object.assign(this, data);
+        resolve(data);
+      }).catch(err => reject(findResErr(err)));
+    });
+  }
+
+  // Declares a funciton to create a file on Google Drive with the class's values.
+  async create() {
+    // Returns a promise.
+    return new Promise((resolve, reject) => {
+      // Runs the createFile function.
+      Drive.createFile(this).then((res) => {
+        // Assigns the response data to the current instance of the class and then resolves the returned promise with the response data.
+        Object.assign(this, res);
+        resolve(res);
+      }).catch(err => reject(findResErr(err)));
+    });
+  };
+
+  // Declares a funcion to update a file on Google Drive to the class's values.
+  async update() {
+    // Returns a promise.
+    return new Promise((resolve, reject) => {
+      // Runs the updateFile funciton.
+      Drive.updateFile(this).then(res => {
+        // Assigns the response data to the current instance of the class and then resolves the returned promise with the response data.
+        Object.assign(this, res);
+        resolve(res);
+      }).catch(err => reject(findResErr(err)));
+    });
+  }
+
+  // Detects whether a file has a valad id, creating a new one if id doesn't and updating the existing one if it does.
+  async upload() {
+    // Returns a promise.
+    return new Promise((resolve, reject) => {
+      // Tests if the file exists on Google Drive.
+      Drive.testFileExist(this.id).then(fileExist => {
+        // Defines a variable to hold the upload promise.
+        let uploadPromise;
+        if (fileExist) {
+          // Sets uploadPromise to the updateFile function.
+          uploadPromise = Drive.updateFile(this);
+        } else {
+          // Sets uploadPromise to the createFile function.
+          uploadPromise = Drive.createFile(this);
+        }
+        uploadPromise.then(res => {
+          // Assigns the response data to the current instance of the class and then resolves the returned promise with the response data.
+          Object.assign(this, res);
+          resolve(res);
+        }).catch(err => reject(findResErr(err)));
+      }).catch(err => reject(findResErr(err)));
+    });
+  }
+
+  
+  // Declares a function to delete the file on the server.
+  async delete() {
+    // Returns the deleteFile function response.
+    return Drive.deleteFile(this.id);
   }
 }
