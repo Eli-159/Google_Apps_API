@@ -8,7 +8,7 @@ Drive.getDriveAccess();
 const gDrive = new Drive({id: '1bM90RO5Y2-6A-ViOWLI_7Xw_4RVgGWdr'});
 gDrive.load().then(() => {
   console.log(gDrive);
-  gDrive.upload().then(file => console.log(file)).catch(err => console.log(err));
+  // gDrive.upload().then(file => console.log(file)).catch(err => console.log(err));
 }).catch(err => console.log(err));
 
 // Drive.testFileExist('1bM90RO5Y2-6A-ViOWLI_7Xw_4RVgGWdr').then(res => console.log(res)).catch(err => console.log(err));

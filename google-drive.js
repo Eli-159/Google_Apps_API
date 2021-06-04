@@ -1,3 +1,4 @@
+const fs = require('fs');
 const google = require('googleapis').google;
 const credentials = require('./credentials.json');
 
@@ -55,8 +56,8 @@ module.exports = class Drive {
       ])
       // Resolves the promise, returning an object containing the data fetched.
       .then(res => resolve({
-        ...res[0],
-        ...res[1]
+        content: res[0].data,
+        ...res[1].data
       }))
       // If an error occurs, the promise is rejected with that error.
       .catch(err => reject(findResErr(err)));
@@ -267,6 +268,11 @@ module.exports = class Drive {
     });
   }
 
+  async saveLocal(path) {
+    return new Promise((resolve, reject) => {
+      fs.writeFile(path, (this.mimeType == ''))
+    });
+  }
   
   // Declares a function to delete the file on the server.
   async delete() {
