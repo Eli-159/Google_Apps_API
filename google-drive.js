@@ -183,6 +183,28 @@ module.exports = class Drive {
     });
   }
 
+  static async saveFileLocal(path, fileContent, fileName) {
+    if (typeof path != 'string' || path == '') path = './';
+    const lastPathTerm = path.split(/\/|\\/)[path.split(/\/|\\/).length-1];
+    if (lastPathTerm == '') {
+      if (path.includes('\\')) {
+        path = path + '\\';
+      } else {
+        path = path + '/';
+      }
+    }
+    if (!lastPathTerm.includes('.')) path = path + fileName;
+    return new Promise((resolve, reject) => {
+      fs.writeFile(path, fileContent, (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+
   // Declares a static function to delete a file from Google Drive.
   static async deleteFile(id) {
     // Returns a promise.
@@ -268,10 +290,32 @@ module.exports = class Drive {
     });
   }
 
+  // Declares a function to save the file metadata locally.
+  async saveMetadataLocal(path) {
+    // Declares a constant version of the current instance of this class and removes the content property.
+    const metadata = {...this};
+    delete metadata.content;
+    // Reformats the name to default to.
+    const name = this.name.split('.' + this.fileExtension)[0] + '_metadata.' + this.fileExtension;
+    // Returns the saveFileLocal function with standard inputs.
+    return Drive.saveFileLocal(path, JSON.stringify(metadata), name);
+  }
+
+  // Declares a function to save the file content locally.
+  async saveContentLocal(path) {
+    // Declares a variable with the current data, stringifying it if it is a json.
+    console.log(this);
+    const content = (this.mimeType=='application/json'||this.fileExtension=='json' ? JSON.stringify(this.content) : this.content);
+    // Reformats the name to default to.
+    const name = this.name.split('.' + this.fileExtension)[0] + '_content.' + this.fileExtension;
+    // Returns the saveFileLocal function with standard inputs.
+    return Drive.saveFileLocal(path, content, name);
+  }
+
+  // Declares a function to save the file metadata locally.
   async saveLocal(path) {
-    return new Promise((resolve, reject) => {
-      fs.writeFile(path, (this.mimeType == ''))
-    });
+    // Returns the saveFileLocal function with standard inputs.
+    return Drive.saveFileLocal(path, JSON.stringify(this), this.name);
   }
   
   // Declares a function to delete the file on the server.

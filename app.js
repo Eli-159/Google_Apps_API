@@ -8,6 +8,9 @@ Drive.getDriveAccess();
 const gDrive = new Drive({id: '1bM90RO5Y2-6A-ViOWLI_7Xw_4RVgGWdr'});
 gDrive.load().then(() => {
   console.log(gDrive);
+  gDrive.saveLocal('./data.json').catch(err => console.log(err));
+  gDrive.saveMetadataLocal('./').catch(err => console.log(err));
+  gDrive.saveContentLocal('').catch(err => console.log(err));
   // gDrive.upload().then(file => console.log(file)).catch(err => console.log(err));
 }).catch(err => console.log(err));
 
