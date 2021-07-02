@@ -1,6 +1,6 @@
 const google = require('googleapis').google;
 const fs = require('fs');
 const credentials = require('./credentials.json');
-const Drive = require('./google-drive.js');
+const Google = require('./google-data.js');
 
-Drive.getDriveAccess();
+Google.Sheets.getSheetsAccess();

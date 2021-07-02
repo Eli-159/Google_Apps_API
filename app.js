@@ -1,4 +1,4 @@
-const Drive = require('./google-drive.js');
+const Google = require('./google-data.js');
 const fs = require('fs');
 
 Drive.getDriveAccess();
@@ -7,7 +7,7 @@ Drive.getDriveAccess();
 
 // Drive.downloadFileById('1wexSa0TVmko5L79kr5jR5p3zYGLlTW1F').catch(err => console.log(err));
 
-const gDrive = new Drive({id: '15qv42wmVoRx6F2Lbr3bhWnDWbmdSsEA8'});
+const gDrive = new Google.Drive({id: '15qv42wmVoRx6F2Lbr3bhWnDWbmdSsEA8'});
 gDrive.load().then(() => {
   // console.log(gDrive);
   // gDrive.saveLocal('./data.json').catch(err => console.log(err));
