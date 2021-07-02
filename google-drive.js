@@ -10,6 +10,20 @@ function findResErr(err) {
   }
 }
 
+function getFilePath(path, fileName) {
+  if (typeof path != 'string' || path == '') path = './';
+  const lastPathTerm = path.split(/\/|\\/)[path.split(/\/|\\/).length-1];
+  if (lastPathTerm == '') {
+    if (path.includes('\\')) {
+      path = path + '\\';
+    } else {
+      path = path + '/';
+    }
+  }
+  if (!lastPathTerm.includes('.')) path = path + fileName;
+  return path;
+}
+
 module.exports = class Drive {
   // Declares a constructor function for the Drive class.
   constructor(fileData) {
@@ -85,6 +99,38 @@ module.exports = class Drive {
           // Rejects the promise if multiple files are found with the name provided.
           reject('Too many files share that name.')
         }
+      }).catch(err => reject(findResErr(err)));
+    });
+  };
+
+  // Declares a static function to get a file by id.
+  static async downloadFileById(id, path) {
+    // Returns a promise.
+    return new Promise((resolve, reject) => {
+      // Tests that the access variable isn't null and rejects the promise if it is.
+      if (Drive.access == null) return reject('Drive Access Not Granted. Call \'getDriveAccess()\' method to resolve this issue.');
+      // Fetches the metadata of the file.
+      Drive.access.files.get({
+        fileId: id, 
+        fields: Drive.fields.join(', ')
+      }).then(metadata => {
+        // const dest = fs.createWriteStream('./' + metadata.name);
+        // Drive.access.files.get({
+        //   fileId: id,
+        //   alt: 'media'
+        // }).pipe(dest);
+        // resolve(metadata);
+
+        Drive.access.files.get({fileId: id, alt: 'media'}, {responseType: 'stream'}).then(res => {
+            const filePath = getFilePath(path, metadata.data.name);
+            const dest = fs.createWriteStream(filePath);
+
+          res.data.on('end', () => {
+            resolve(metadata.data);
+          }).on('error', err => {
+            reject(err);
+          }).pipe(dest);
+        });
       }).catch(err => reject(findResErr(err)));
     });
   };
@@ -184,18 +230,9 @@ module.exports = class Drive {
   }
 
   static async saveFileLocal(path, fileContent, fileName) {
-    if (typeof path != 'string' || path == '') path = './';
-    const lastPathTerm = path.split(/\/|\\/)[path.split(/\/|\\/).length-1];
-    if (lastPathTerm == '') {
-      if (path.includes('\\')) {
-        path = path + '\\';
-      } else {
-        path = path + '/';
-      }
-    }
-    if (!lastPathTerm.includes('.')) path = path + fileName;
+    const filePath = getFilePath(path, fileName);
     return new Promise((resolve, reject) => {
-      fs.writeFile(path, fileContent, (err) => {
+      fs.writeFile(filePath, fileContent, (err) => {
         if (err) {
           reject(err);
         } else {
@@ -316,6 +353,10 @@ module.exports = class Drive {
   async saveLocal(path) {
     // Returns the saveFileLocal function with standard inputs.
     return Drive.saveFileLocal(path, JSON.stringify(this), this.name);
+  }
+
+  async download(path) {
+    return Drive.downloadFileById(this.id, path);
   }
   
   // Declares a function to delete the file on the server.
