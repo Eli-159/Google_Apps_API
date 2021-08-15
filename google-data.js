@@ -393,9 +393,9 @@ module.exports = class Google {
       });
     };
 
-    // Gets data from the spreadsheet the spreadsheet data.
+    // Gets data from the sheet.
     // The options for this function are majorDimension (string), valueRenderOption (string), and dateTimeRenderOption (string).
-    static getSpreadsheetData(id, range, options) {
+    static getSheetData(id, range, options) {
       // Returns a promise.
       return new Promise((resolve, reject) => {
         // Gets data from the spreadsheet.
@@ -405,5 +405,15 @@ module.exports = class Google {
       });
     };
 
+    // Clears a sheet range.
+    static clearSheetData(id, range) {
+      // Returns a promise.
+      return new Promise((resolve, reject) => {
+        // Clears data from the spreadsheet.
+        Google.Sheets.access.spreadsheets.values.clear({spreadsheetId: id, range})
+        .then(res => resolve(res.data))
+        .catch(err => reject(findResErr(err)));
+      });
+    };
   }
 }
