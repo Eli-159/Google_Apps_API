@@ -380,5 +380,30 @@ module.exports = class Google {
       // Returns the google sheets instance.
       return sheets;
     };
+
+    // Gets the basic spreadsheet infomation. Requires the spreadsheet id and an optional object of options.
+    // The options for this function are ranges (array of strings), and includeGridData (boolean).
+    static getSpreadsheet(id, options) {
+      // Returns a promise.
+      return new Promise((resolve, reject) => {
+        // Gets the spreadsheet data.
+        Google.Sheets.access.spreadsheets.get({spreadsheetId: id, ...options})
+        .then(res => resolve(res.data))
+        .catch(err => reject(findResErr(err)));
+      });
+    };
+
+    // Gets data from the spreadsheet the spreadsheet data.
+    // The options for this function are majorDimension (string), valueRenderOption (string), and dateTimeRenderOption (string).
+    static getSpreadsheetData(id, range, options) {
+      // Returns a promise.
+      return new Promise((resolve, reject) => {
+        // Gets data from the spreadsheet.
+        Google.Sheets.access.spreadsheets.values.get({spreadsheetId: id, range, ...options})
+        .then(res => resolve(res.data))
+        .catch(err => reject(findResErr(err)));
+      });
+    };
+
   }
 }
