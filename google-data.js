@@ -393,13 +393,32 @@ module.exports = class Google {
       });
     };
 
+    // Declares a range class as a sub-class of the Sheets class.
+    static Range = class Range {
+      // Declares a constructor function with three inputs.
+      // The three inputs are range (string - A1 notiation), values (nested arrays, optional), and majorDimension (enum, optional - default is rows).
+      constructor(range, values, majorDimension) {
+        // Test that the range value is a string.
+        if (typeof range != 'string') throw Error('Range is not a string. This is a required input.');
+        // Sets the three inputs as properties of the ValueRange class.
+        this.range = range;
+        this.values = values;
+        this.majorDimension = (majorDimension ? majorDimension : 'ROWS');
+      }
+    }
+
     // Gets data from the sheet.
-    // The options for this function are majorDimension (string), valueRenderOption (string), and dateTimeRenderOption (string).
+    // Options: valueRenderOption (enum), and dateTimeRenderOption (enum).
     static getSheetData(id, range, options) {
       // Returns a promise.
       return new Promise((resolve, reject) => {
         // Gets data from the spreadsheet.
-        Google.Sheets.access.spreadsheets.values.get({spreadsheetId: id, range, ...options})
+        Google.Sheets.access.spreadsheets.values.get({
+          spreadsheetId: id,
+          range: range.range,
+          majorDimension: range.majorDimension,
+          ...options
+        })
         .then(res => resolve(res.data))
         .catch(err => reject(findResErr(err)));
       });
@@ -411,6 +430,24 @@ module.exports = class Google {
       return new Promise((resolve, reject) => {
         // Clears data from the spreadsheet.
         Google.Sheets.access.spreadsheets.values.clear({spreadsheetId: id, range})
+        .then(res => resolve(res.data))
+        .catch(err => reject(findResErr(err)));
+      });
+    };
+
+    // Writes to a sheet range.
+    // Options: valueInputOption (enum), includeValuesInResponse (boolean), responseValueRenderOption (enum), responseDateTimeRenderOption (enum)
+    static writeSheetData(id, range, options) {
+      // Returns a promise.
+      return new Promise((resolve, reject) => {
+        // Writes data to the spreadsheet.
+        Google.Sheets.access.spreadsheets.values.update({
+          spreadsheetId: id,
+          range: range.range,
+          requestBody: range,
+          ...options,
+          valueInputOption: (options && options.valueInputOption ? options.valueInputOption : 'RAW'),
+        })
         .then(res => resolve(res.data))
         .catch(err => reject(findResErr(err)));
       });
